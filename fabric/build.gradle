@@ -1,0 +1,93 @@
+plugins {
+    id 'com.gradleup.shadow'
+}
+
+architectury {
+    platformSetupLoomIde()
+    fabric()
+}
+
+configurations {
+    common {
+        canBeResolved = true
+        canBeConsumed = false
+    }
+    compileClasspath.extendsFrom common
+    runtimeClasspath.extendsFrom common
+    developmentFabric.extendsFrom common
+
+    // Files in this configuration will be bundled into your mod using the Shadow plugin.
+    // Don't use the `shadow` configuration from the plugin itself as it's meant for excluding files.
+    shadowBundle {
+        canBeResolved = true
+        canBeConsumed = false
+    }
+}
+
+repositories {
+    // Team Reborn Energy lives in the FabricMC maven (already a configured repo for
+    // fabric-loader / fabric-api in the root settings.gradle, but explicit here too
+    // for clarity).
+    maven { url = 'https://maven.fabricmc.net/' }
+    // Modrinth maven — used for dev-runtime tools (Jade etc.).
+    maven {
+        url = 'https://api.modrinth.com/maven'
+        content { includeGroup 'maven.modrinth' }
+    }
+}
+
+dependencies {
+    modImplementation "net.fabricmc:fabric-loader:$rootProject.fabric_loader_version"
+
+    // Fabric API. This is technically optional, but you probably want it anyway.
+    modImplementation "net.fabricmc.fabric-api:fabric-api:$rootProject.fabric_api_version"
+
+    // Architectury API. This is optional, and you can comment it out if you don't need it.
+    modImplementation "dev.architectury:architectury-fabric:$rootProject.architectury_api_version"
+
+    // Team Reborn Energy — de facto cross-mod energy API on Fabric. 4.2.0 is the
+    // latest version that ships its access widener in {@code intermediary} namespace
+    // (5.0+ ships it in {@code official} which Loom can't remap into a project that
+    // uses Mojang mappings). Bundled via {@code include} so end-users don't need
+    // a separate Energy download.
+    modImplementation "teamreborn:energy:4.1.0"
+    include "teamreborn:energy:4.1.0"
+
+    common(project(path: ':common', configuration: 'namedElements')) { transitive = false }
+    shadowBundle project(path: ':common', configuration: 'transformProductionFabric')
+
+    // Jade — in-world block/entity tooltips. Dev-only, not shipped.
+    modRuntimeOnly "maven.modrinth:jade:15.10.5+fabric"
+
+    // TechReborn + RebornCore — dev-only, used to test the yaku generator's RF
+    // extraction via TR cables / energy storage units (TechReborn upstreams the
+    // Team Reborn Energy API we already depend on).
+    modRuntimeOnly "maven.modrinth:techreborn:5.11.19"
+    modRuntimeOnly "maven.modrinth:reborncore:5.11.19"
+
+    // EMI — disabled in fabric dev runtime: the 1.1.22+1.21.1+fabric jar
+    // hits AbstractMethodError on PreparableReloadListener.reload during
+    // client init (Yarn→Mojang remap of the 6-arg signature isn't binding
+    // EmiClientFabric$1's override). NeoForge runtime is fine. Common's
+    // MahjongAltarEmiPlugin still compiles against the modCompileOnly EMI
+    // api jar in common/build.gradle. Re-enable once a working version is
+    // identified.
+    // modRuntimeOnly "maven.modrinth:emi:1.1.22+1.21.1+fabric"
+}
+
+processResources {
+    inputs.property 'version', project.version
+
+    filesMatching('fabric.mod.json') {
+        expand version: inputs.properties.version
+    }
+}
+
+shadowJar {
+    configurations = [project.configurations.shadowBundle]
+    archiveClassifier = 'dev-shadow'
+}
+
+remapJar {
+    inputFile.set shadowJar.archiveFile
+}

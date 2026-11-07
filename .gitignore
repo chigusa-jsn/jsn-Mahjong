@@ -1,0 +1,38 @@
+# eclipse
+bin
+*.launch
+.settings
+.metadata
+.classpath
+.project
+
+# idea
+out
+*.ipr
+*.iws
+*.iml
+.idea
+
+# gradle
+build
+.gradle
+
+# tenhou historical fixtures (downloaded locally, not committed)
+src/test/resources/com/themahjong/replay/tenhou/2019/
+scraw2019.zip
+tenhou2019.db
+houou-logs/
+
+# other
+eclipse
+run
+
+# Files from Forge MDK
+forge*changelog.txt
+.claude
+.cursor
+.junie
+aseprite
+AGENTS.md
+CLAUDE.md
+skills-lock.json

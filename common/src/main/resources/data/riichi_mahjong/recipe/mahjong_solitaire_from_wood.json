@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "LGL",
+    "L L",
+    "IRI"
+  ],
+  "key": {
+    "L": { "tag": "minecraft:logs" },
+    "G": { "tag": "minecraft:wool" },
+    "I": { "item": "minecraft:iron_block" },
+    "R": { "item": "minecraft:redstone_block" }
+  },
+  "result": {
+    "id": "riichi_mahjong:mahjong_solitaire",
+    "count": 1
+  }
+}

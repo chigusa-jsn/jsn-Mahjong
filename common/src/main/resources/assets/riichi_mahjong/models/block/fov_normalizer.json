@@ -1,0 +1,6 @@
+{
+	"parent": "minecraft:block/cube_all",
+	"textures": {
+		"all": "riichi_mahjong:block/fov_normalizer"
+	}
+}
