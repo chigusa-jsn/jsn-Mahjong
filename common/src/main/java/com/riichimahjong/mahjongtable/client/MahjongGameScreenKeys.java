@@ -86,6 +86,9 @@ public final class MahjongGameScreenKeys {
                 origin.offset(SEARCH_RADIUS, 4, SEARCH_RADIUS))) {
             if (!(mc.level.getBlockEntity(p) instanceof MahjongTableBlockEntity table)) continue;
             if (table.driver() == null) continue;
+            // For auto-open, a finished match doesn't count: that way starting
+            // the next match at the same table is seen as a fresh start.
+            if (seatedOnly && table.isDriverTerminal()) continue;
             double d = p.distSqr(origin);
             if (MahjongGameScreen.localSeat(table) >= 0) {
                 if (d < bestSeatedDist) {
