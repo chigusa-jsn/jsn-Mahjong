@@ -1498,6 +1498,7 @@ public final class TheMahjongRound {
             throw new IllegalStateException("exhaustiveDraw() cannot be called in state " + state);
         }
         List<TheMahjongPlayer> newPlayers = players;
+        boolean nagashi = false;
         if (rules.nagashiManganAllowed()) {
             List<Integer> winners = new ArrayList<>();
             for (int i = 0; i < players.size(); i++) {
@@ -1505,7 +1506,22 @@ public final class TheMahjongRound {
             }
             if (!winners.isEmpty()) {
                 newPlayers = applyNagashiManganDeltas(winners);
+                nagashi = true;
             }
+        }
+        if (!nagashi) {
+            // 不聴罰符 (noten payments): tenpai players split the pool paid by noten players.
+            int[] deltas = notenPaymentDeltas(tenpaiFlags());
+            List<TheMahjongPlayer> paid = new ArrayList<>(players.size());
+            for (int i = 0; i < players.size(); i++) {
+                TheMahjongPlayer p = players.get(i);
+                paid.add(deltas[i] == 0 ? p : new TheMahjongPlayer(
+                        p.points() + deltas[i],
+                        p.riichiState(), p.ippatsuEligible(),
+                        p.currentHand(), p.melds(), p.discards(), p.temporaryFuritenTiles(),
+                        p.riichiPermanentFuriten(), p.kitaCount()));
+            }
+            newPlayers = paid;
         }
         return new TheMahjongRound(
                 roundWind, handNumber, honba, riichiSticks, dealerSeat,
@@ -1513,6 +1529,43 @@ public final class TheMahjongRound {
                 ActiveTile.none(),
                 liveWall, rinshanTiles, doraIndicators, uraDoraIndicators, revealedDoraCount,
                 newPlayers, List.of());
+    }
+
+    /**
+     * Whether {@code seat} is tenpai at an exhaustive draw. Only meaningful
+     * when the hand has its between-turns size ({@code 13 - 3 * melds});
+     * any other shape counts as noten.
+     */
+    public boolean tenpaiAtExhaustiveDraw(int seat) {
+        validateSeat(seat);
+        TheMahjongPlayer p = players.get(seat);
+        if (p.currentHand().size() != 13 - 3 * p.melds().size()) return false;
+        return TenpaiChecker.inTenpai(p);
+    }
+
+    /** {@link #tenpaiAtExhaustiveDraw} for every seat. */
+    public boolean[] tenpaiFlags() {
+        boolean[] out = new boolean[players.size()];
+        for (int i = 0; i < out.length; i++) out[i] = tenpaiAtExhaustiveDraw(i);
+        return out;
+    }
+
+    /**
+     * Point changes for 不聴罰符. The pool is 3000 with four players and
+     * 2000 with three (Mahjong Soul rules); nothing moves when everyone or
+     * nobody is tenpai.
+     */
+    public static int[] notenPaymentDeltas(boolean[] tenpai) {
+        int n = tenpai.length;
+        int[] deltas = new int[n];
+        int tenpaiCount = 0;
+        for (boolean t : tenpai) if (t) tenpaiCount++;
+        if (tenpaiCount == 0 || tenpaiCount == n) return deltas;
+        int pool = n == 3 ? 2000 : 3000;
+        int gain = pool / tenpaiCount;
+        int loss = pool / (n - tenpaiCount);
+        for (int i = 0; i < n; i++) deltas[i] = tenpai[i] ? gain : -loss;
+        return deltas;
     }
 
     /**

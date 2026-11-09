@@ -833,6 +833,26 @@ public class MahjongGameScreen extends Screen {
         if (re.winResults().isEmpty()) {
             lines.add(Component.translatable("riichi_mahjong.result.draw.no_winner"));
             colors.add(COL_TEXT);
+            if (round.liveWall().isEmpty()) {
+                // Exhaustive draw: who was tenpai, and the noten payments.
+                boolean nagashi = false;
+                for (int i = 0; i < round.players().size(); i++) {
+                    if (round.isNagashiManganEligible(i)) nagashi = true;
+                }
+                boolean[] tenpai = round.tenpaiFlags();
+                int[] deltas = nagashi ? new int[tenpai.length] : TheMahjongRound.notenPaymentDeltas(tenpai);
+                for (int i = 0; i < tenpai.length; i++) {
+                    String delta = deltas[i] > 0 ? "  +" + deltas[i] : deltas[i] < 0 ? "  " + deltas[i] : "";
+                    lines.add(Component.empty()
+                            .append(seatName(table, i))
+                            .append(Component.literal("  "))
+                            .append(Component.translatable(tenpai[i]
+                                    ? "riichi_mahjong.screen.game.tenpai"
+                                    : "riichi_mahjong.screen.game.noten"))
+                            .append(Component.literal(delta)));
+                    colors.add(tenpai[i] ? 0xFF7CE07C : COL_TEXT_DIM);
+                }
+            }
         } else {
             WinResult win = re.winResults().get(0);
             int winner = winnerSeat(win);
@@ -1010,6 +1030,19 @@ public class MahjongGameScreen extends Screen {
         if (mc.level == null) return;
         NetworkManager.sendToServer(new C2SCuteClickPacket(mc.level.dimension(), tablePos, key));
         mc.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
+    }
+
+    @Override
+    public void onClose() {
+        MahjongTableBlockEntity table = table();
+        Minecraft mc = Minecraft.getInstance();
+        if (table != null && table.driver() != null && !table.isDriverTerminal()
+                && localSeat(table) >= 0 && mc.player != null) {
+            mc.player.displayClientMessage(Component.translatable("riichi_mahjong.screen.game.reopen_hint",
+                    MahjongGameScreenKeys.OPEN.getTranslatedKeyMessage()), true);
+        }
+        MahjongGameScreenKeys.noteClosed();
+        super.onClose();
     }
 
     @Override

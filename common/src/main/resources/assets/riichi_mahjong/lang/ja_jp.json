@@ -338,5 +338,8 @@
   "riichi_mahjong.screen.game.han_fu": "%s翻 %s符",
   "riichi_mahjong.screen.game.next_round": "次の局へ",
   "riichi_mahjong.screen.game.match_end": "対局終了",
-  "riichi_mahjong.screen.game.bot": "CPU%s"
+  "riichi_mahjong.screen.game.bot": "CPU%s",
+  "riichi_mahjong.screen.game.tenpai": "聴牌",
+  "riichi_mahjong.screen.game.noten": "ノーテン",
+  "riichi_mahjong.screen.game.reopen_hint": "%s キーで麻雀画面に戻れます（自分の番になると自動で開きます）"
 }

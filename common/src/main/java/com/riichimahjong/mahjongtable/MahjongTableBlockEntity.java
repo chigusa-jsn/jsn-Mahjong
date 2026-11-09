@@ -832,8 +832,20 @@ public class MahjongTableBlockEntity extends BlockEntity implements Container, M
             markChangedAndSynced();
             return;
         }
-        boolean renchan = computeRenchan(re);
-        int nextHonba = 0; // simple default; honba progression rules TBD
+        var round = driver.match().currentRound().orElse(null);
+        boolean renchan;
+        int nextHonba;
+        if (re.winResults().isEmpty()) {
+            // Draw: honba +1. Exhaustive draw keeps the dealer only when the
+            // dealer is tenpai; abortive draws (九種九牌 etc.) always repeat.
+            boolean exhaustive = round != null && round.liveWall().isEmpty();
+            renchan = round == null || !exhaustive || round.tenpaiAtExhaustiveDraw(round.dealerSeat());
+            nextHonba = (round != null ? round.honba() : 0) + 1;
+        } else {
+            // Win: dealer win repeats with honba +1, otherwise honba resets.
+            renchan = computeRenchan(re);
+            nextHonba = renchan && round != null ? round.honba() + 1 : 0;
+        }
         clearResultAnimState();
         try {
             driver.advanceRound(renchan, nextHonba);

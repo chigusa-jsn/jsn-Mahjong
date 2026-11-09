@@ -2,6 +2,7 @@ package com.riichimahjong.mahjongtable.client;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import com.riichimahjong.mahjongtable.MahjongTableBlockEntity;
+import com.themahjong.driver.MatchPhase;
 import dev.architectury.event.events.client.ClientTickEvent;
 import dev.architectury.registry.client.keymappings.KeyMappingRegistry;
 import net.fabricmc.api.EnvType;
@@ -36,8 +37,16 @@ public final class MahjongGameScreenKeys {
     /** Table we were last seen seated at with an active match (for auto-open edge detection). */
     @Nullable private static BlockPos seatedActiveTable;
     private static int tickCounter;
+    /** After the player closes the screen, wait this long before reopening it on their turn. */
+    private static final int REOPEN_GRACE_TICKS = 100;
+    private static int suppressReopenUntil;
 
     private MahjongGameScreenKeys() {}
+
+    /** Called when the game screen is closed by the player. */
+    static void noteClosed() {
+        suppressReopenUntil = tickCounter + REOPEN_GRACE_TICKS;
+    }
 
     /** Call once from client init. */
     public static void register() {
@@ -63,10 +72,30 @@ public final class MahjongGameScreenKeys {
             return;
         }
         BlockPos seated = findTable(mc, true);
-        if (seated != null && !seated.equals(seatedActiveTable) && mc.screen == null) {
+        boolean reopenForTurn = tickCounter >= suppressReopenUntil && needsMyInput(mc, seated);
+        if (seated != null && mc.screen == null
+                && (!seated.equals(seatedActiveTable) || reopenForTurn)) {
             mc.setScreen(new MahjongGameScreen(seated));
         }
         seatedActiveTable = seated;
+    }
+
+    /**
+     * True when the local player has to act at this table right now (their
+     * discard, a call decision, or the "next round" button). Used to bring
+     * the screen back after it was closed with Esc.
+     */
+    private static boolean needsMyInput(Minecraft mc, @Nullable BlockPos pos) {
+        if (pos == null || mc.level == null || !(mc.level.getBlockEntity(pos) instanceof MahjongTableBlockEntity table)) return false;
+        var driver = table.driver();
+        if (driver == null) return false;
+        int seat = MahjongGameScreen.localSeat(table);
+        if (seat < 0) return false;
+        var phase = driver.currentPhase();
+        if (phase instanceof MatchPhase.AwaitingDiscard ad) return ad.seat() == seat;
+        if (phase instanceof MatchPhase.AwaitingClaims ac) return ac.pendingSeats().contains(seat);
+        return table.isInResultPhase()
+                && table.resultAnimStage() == MahjongTableBlockEntity.ResultAnimStage.AWAITING_ADVANCE;
     }
 
     /**

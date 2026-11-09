@@ -338,5 +338,8 @@
   "riichi_mahjong.screen.game.han_fu": "%s han %s fu",
   "riichi_mahjong.screen.game.next_round": "Next round",
   "riichi_mahjong.screen.game.match_end": "Match over",
-  "riichi_mahjong.screen.game.bot": "CPU%s"
+  "riichi_mahjong.screen.game.bot": "CPU%s",
+  "riichi_mahjong.screen.game.tenpai": "Tenpai",
+  "riichi_mahjong.screen.game.noten": "Noten",
+  "riichi_mahjong.screen.game.reopen_hint": "Press %s to return to the mahjong screen (it reopens on your turn)"
 }
