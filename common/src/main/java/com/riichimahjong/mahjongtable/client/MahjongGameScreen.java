@@ -181,12 +181,30 @@ public class MahjongGameScreen extends Screen {
         return Math.round(w * 14f / 11f) + thickness(w);
     }
 
+    /** Height of the band along each box edge that holds a seat's wind + points. */
+    private int labelBand() {
+        return font.lineHeight + 4;
+    }
+
     private void computeLayout() {
-        // Vertical budget ≈ 18 river-tile widths (top hand, two rivers, box,
-        // own hand); horizontal budget ≈ 26 (own hand + melds).
-        float byHeight = (height - 30f) / 18.2f;
-        float byWidth = (width - 20f) / 26f;
-        u = Math.max(8, (int) Math.floor(Math.min(byHeight, byWidth)));
+        // Pick the biggest river tile that fits: vertically we need toimen's
+        // row, two 3-row rivers, the centre box, the button row and our hand;
+        // horizontally our hand + melds (≈ 26 river-tile widths).
+        int maxByWidth = Math.max(8, (width - 20) / 26);
+        u = 8;
+        for (int cand = Math.min(40, maxByWidth); cand >= 8; cand--) {
+            int candRh = tileHeight(cand);
+            int candHh = tileHeight(Math.max(12, Math.round(cand * 1.7f)));
+            int need = (candRh + 6)                       // toimen hand / melds
+                    + 2 * (RIVER_ROWS * candRh + GAP)      // two rivers
+                    + cand * RIVER_COLS + 2 * labelBand()  // centre box
+                    + 22                                   // button row overlap
+                    + candHh + 8;                          // own hand
+            if (need <= height) {
+                u = cand;
+                break;
+            }
+        }
         rh = tileHeight(u);
         hw = Math.max(12, Math.round(u * 1.7f));
         hh = tileHeight(hw);
@@ -194,7 +212,7 @@ public class MahjongGameScreen extends Screen {
         oh = tileHeight(ow);
         dw = Math.max(7, Math.round(u * 0.8f));
         dh = tileHeight(dw);
-        box = u * RIVER_COLS;
+        box = u * RIVER_COLS + 2 * labelBand();
 
         handY = height - hh - 8;
         int top = rh + 6;                        // room for toimen's hand/melds
@@ -276,10 +294,21 @@ public class MahjongGameScreen extends Screen {
                     6, 6, COL_TEXT_DIM, true);
         }
 
-        if (table.isInResultPhase() && phase instanceof MatchPhase.RoundEnded re) {
-            drawResultPanel(g, table, round, re, mySeat >= 0, mouseX, mouseY);
-        } else if (phase instanceof MatchPhase.MatchEnded) {
-            drawFinalPanel(g, table, round);
+        // Panels sit on a higher z layer: GUI text is batched and would
+        // otherwise show through the panel background.
+        boolean resultPanel = table.isInResultPhase() && phase instanceof MatchPhase.RoundEnded;
+        boolean finalPanel = !resultPanel && phase instanceof MatchPhase.MatchEnded;
+        if (resultPanel || finalPanel) {
+            g.flush();
+            g.pose().pushPose();
+            g.pose().translate(0, 0, 400);
+            if (resultPanel) {
+                drawResultPanel(g, table, round, (MatchPhase.RoundEnded) phase, mySeat >= 0, mouseX, mouseY);
+            } else {
+                drawFinalPanel(g, table, round);
+            }
+            g.flush();
+            g.pose().popPose();
         }
     }
 
@@ -353,7 +382,8 @@ public class MahjongGameScreen extends Screen {
                 "riichi_mahjong.result.wind." + round.roundWind().name().toLowerCase(Locale.ROOT));
         Component label = Component.translatable("riichi_mahjong.result.round_label",
                 wind, Component.literal(String.valueOf(round.handNumber())));
-        int y = cy - half + 14;
+        int contentH = font.lineHeight + 2 + dh + 2 + font.lineHeight + 1 + font.lineHeight;
+        int y = cy - contentH / 2;
         g.drawCenteredString(font, label, cx, y, COL_GOLD);
         y += font.lineHeight + 2;
 
@@ -390,11 +420,20 @@ public class MahjongGameScreen extends Screen {
             if (turn) {
                 g.fill(-half, half - 2, half, half, COL_TURN);
             }
-            g.drawString(font, line, -tw / 2, ty, turn ? COL_TURN
-                    : (round.dealer(s) ? 0xFFFF9A7A : COL_TEXT), false);
+            int color = turn ? COL_TURN : (round.dealer(s) ? 0xFFFF9A7A : COL_TEXT);
+            if (rel == 2) {
+                // Toimen: keep the text readable instead of upside down.
+                g.pose().pushPose();
+                g.pose().translate(0, ty + font.lineHeight / 2f, 0);
+                g.pose().mulPose(Axis.ZP.rotationDegrees(180f));
+                g.drawString(font, line, -tw / 2, -font.lineHeight / 2, color, false);
+                g.pose().popPose();
+            } else {
+                g.drawString(font, line, -tw / 2, ty, color, false);
+            }
             // Riichi stick in front of the river.
             if (p.riichi()) {
-                int sw = box / 2;
+                int sw = u * 3;
                 g.fill(-sw / 2, half + 2, sw / 2, half + 4, 0xFFF4F4F4);
                 g.fill(-1, half + 2, 1, half + 4, 0xFFE03030);
             }
@@ -473,7 +512,7 @@ public class MahjongGameScreen extends Screen {
     private void drawRiver(GuiGraphics g, TheMahjongRound round, int seat, int rel, Set<Long> claimed) {
         List<TheMahjongDiscard> discards = round.players().get(seat).discards();
         beginSeatFrame(g, rel);
-        int x0 = -box / 2;
+        int x0 = -(u * RIVER_COLS) / 2;
         int y0 = box / 2 + GAP;
         int x = x0;
         int row = 0;
